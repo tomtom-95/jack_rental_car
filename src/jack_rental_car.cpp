@@ -21,5 +21,16 @@ int main(int arcg, char *argv[]) {
   -start from a random policy, do policy evaluation to find the value function
   -update the policy as greedy wrt the value funciton just calculated
   */
+
+  // state value function initialization
+  // now I must say that this map as 20*20=400 entries
+  std::map<std::tuple<int, int>> state_values;
+  // policy initialization
+  // <int, int, int> = state and action 
+  // now I must say that this map has 10*20*20=4000 entries
+  std::map<std::tuple<int, int, int>, double>;
+
+  // after initialization I can say how to implement policy iteration to compute the value function and change the policy accordingly
+
   return 0;
 }
