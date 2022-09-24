@@ -1,87 +1,103 @@
 #include <iostream>
-#include <map>
 
-double dynamics(std::tuple<int,int> next_state, int reward, std::tuple<int,int> prev_state, int action);
+int cars_num = 5;
 
-double dynamics(std::tuple<int,int> next_state, int reward, std::tuple<int,int> prev_state, int action) {
-  int wanna_return_to_A = 2;
-  int wanna_take_from_A = 3;
-  int wanna_return_to_B = 3;
-  int wanna_take_from_B = 4;
+double dynamics(int next_a_cars, int next_b_cars, int reward, int prev_a_cars, int prev_b_cars, int action);
+double update_state_value(int a_cars, int b_cars, int policy[cars_num][cars_num], double state_value[cars_num][cars_num]);
+int argmax(int a_cars, int b_cars, double state_value[cars_num][cars_num]);
 
-  int taken_from_A = std::min(std::get<0>(prev_state) - action + wanna_return_to_A, wanna_take_from_A);
-  int taken_from_B = std::min(std::get<1>(prev_state) + action + wanna_return_to_B, wanna_take_from_B);
+// p(s', r | s, a)
+//TODO: problem with my implementation (I think due to the policy definition) I do not explore other states and I find as best value function
+double dynamics(int next_a_cars, int next_b_cars, int reward, int prev_a_cars, int prev_b_cars, int action) {
+  int a_cars_taken = std::min(prev_a_cars - action + 2, 3);
+  int b_cars_taken = std::min(prev_b_cars + action + 3, 4);
 
-  // now I can write the actual_next_state
-  std::tuple<int,int> actual_next_state = {std::get<0>(prev_state) - taken_from_A, std::get<1>(prev_state) - taken_from_B};
-  
-  // and the actual reward
-  int actual_reward = 10 * taken_from_A + 10 * taken_from_B -  2 * action;
+  int real_reward = 10 * a_cars_taken + 10 * b_cars_taken - 2 * abs(action);
 
-  // in this simplified case all is deterministic, so I can assign porobability 1 to the only case that will happen and 0 if anything else happen
-  if (next_state == actual_next_state && reward == actual_reward)
+  if ((next_a_cars == prev_a_cars - a_cars_taken + 2) &&
+      (next_b_cars == prev_b_cars - b_cars_taken + 3) &&
+      (reward == real_reward)) {
     return 1;
-  else
+  }
+  else {
     return 0;
+  }
+}
+
+double update_state_value(int a_cars, int b_cars, int policy[cars_num][cars_num], double state_value[cars_num][cars_num]) {
+  double new_value = 0;
+  for (int i = 0; i != cars_num; ++i) {
+    for (int j = 0; j != cars_num; ++j) {
+      for (int reward = -10; reward != 70; ++reward) {
+        new_value += dynamics(i, j, reward, a_cars, b_cars, policy[a_cars][b_cars]) * (reward + 0.9 * state_value[i][j]);
+      }
+    }
+  }
+  return new_value;
+}
+
+int argmax(int a_cars, int b_cars, double state_value[cars_num][cars_num]) {
+  double value = 0;
+  double max_value = 0;
+  int max_action = 0;
+  for (int a = -5 ; a != 6; ++a) {
+    for (int i = 0; i != cars_num; ++i) {
+      for (int j = 0; j != cars_num; ++j) {
+        for (int reward = -10; reward != 70; ++reward) {
+          value = dynamics(i, j, reward, a_cars, b_cars, a) * (reward + 0.9 * state_value[i][j]);
+        }
+      }
+    }
+    if (max_value < value) {
+      max_value = value;
+      max_action = a;
+    }
+  }
+  return max_action; 
 }
 
 int main(int argc, char *argv[]) {
-  /*
-  20 cars, every night I can move up to 5 cars between places at the cost of 2
+  double state_value[cars_num][cars_num] = {};
+  int policy[cars_num][cars_num] = {};
 
-  # cars returned to place A: 2
-  # cars returned to place B: 3
-  # cars taken from place A: 3
-  # cars taken from place B: 4
-
-  continuing finite MDP
-  gamma = 0.9
-
-  what are the states? (#cars at A, #cars at B)
-  what are the actions? #cars to move from A to B (or B to A)
-  what are the rewards? 10 for every car rented and -2 for every car moved
-
-  Now that the problem is clear I can implement the policy iteration algorithm (pseudocode at page 80)
-  -initialization: what data structure to use?
-  -start from a random policy, do policy evaluation to find the value function
-  -update the policy as greedy wrt the value funciton just calculated
-  */
-
-  // TODO: look here probably somethin wrong
-  // state value function initialization
-  struct state {
-    int cars_at_A;
-    int cars_at_B;
-  };
-
-  std::map<struct state, double> state_values;
-  for (int i = 0; i != 20; ++i) {
-    for (int j = 0; j != 20; ++j) {
-      struct state stato;
-      stato.cars_at_A = i;
-      stato.cars_at_B = j;
-      state_values[stato] = 0;
+  bool policy_stable = false;
+  while (policy_stable == false) {
+    // policy evaluation
+    double delta = 10;
+    double theta = 1;
+    while (delta > theta) {
+      delta = 0;
+      for (int i = 0; i != cars_num; ++i) {
+        for (int j = 0; j != cars_num; ++j) {
+          double temp_value = state_value[i][j];
+          state_value[i][j] = update_state_value(i, j, policy, state_value);
+          std::cout << state_value[i][j] << std::endl;
+          delta = std::max(delta, abs(temp_value - state_value[i][j]));
+        }
+      }
     }
-  }
 
-  std::map<std::tuple<int, int>, double> state_values;
-  for (int i = 0; i != 20; ++i) {
-    for (int j = 0; j != 20; ++j) {
-        state_values[{i,j}] = 0;
-    }
-  }
+    return 0;
 
-
-  // policy initialization
-  // <int, int, int> = state and action 
-  std::map<std::tuple<int, int, int>, double> policy;
-  for (int i = 0; i != 20; ++i) {
-    for (int j = 0; j != 20; ++j) {
-      for (int k = -5; k != 6; ++k) {
-        policy[{i, j, k}] = 0;
+    // policy improvement
+    policy_stable = true;
+    for (int i = 0; i != cars_num; ++i) {
+      for (int j = 0; j != cars_num; ++j) {
+        int old_action = policy[i][j];
+        policy[i][j] = argmax(i, j, state_value);
+        if (old_action != policy[i][j]) {
+          policy_stable = false;
+        }
       }
     }
   }
 
+  for (int i = 0; i != cars_num; ++i) {
+    for (int j = 0; j != cars_num; ++j) {
+      std::cout << "state_value[" << i << "][" << j << "] = " << state_value[i][j] << std::endl;
+      std::cout << "policy[" << i << "][" << j << "] = " << policy[i][j] << std::endl;
+    }
+  }
+  
   return 0;
 }
