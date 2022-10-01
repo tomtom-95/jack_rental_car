@@ -6,14 +6,14 @@
 #define RENT_REWARD 10
 #define MOVE_COST 2
 
-int factorial(int k);
+long long factorial(int k);
 double poisson(double lambda, int k);
 double cumulative_poisson(double lambda, int k);
 double poisson_mod(double lambda, int k, int limit);
 double rent_reward(int car, double lambda);
 
-int factorial(int k) {
-  int fact = 1;
+long long factorial(int k) {
+  long long fact = 1;
 
   for (int i = 1; i < k + 1; i++) {
     fact *= i;
@@ -23,18 +23,13 @@ int factorial(int k) {
 }
 
 double poisson(double lambda, int k) {
-  if (k < 0 || k > 10) {
-    return 0;
-  }
-  else {
-    return (pow(lambda, k) * pow(M_E, -lambda)) / factorial(k);
-  }
+  return pow(M_E, -lambda) * (pow(lambda, k) / factorial(k));
 }
 
 double cumulative_poisson(double lambda, int k) {
   double cumulative_prob = 0;
   double prob = 0;
-  double eps = 0.001;
+  double eps = 0.00001;
 
   do {
     prob = poisson(lambda, k++);
@@ -68,11 +63,11 @@ double rent_reward(int n, double lambda) {
 
 int main(int argc, char *argv[]) {
   // poisson expectations for rent
-  double lambda_a = 2;
-  double lambda_b = 3;
+  double lambda_a = 3;
+  double lambda_b = 4;
   // poisson expectations for return
   double mu_a = 3;
-  double mu_b = 4;
+  double mu_b = 2;
 
   // r(s,a)
   double expected_reward[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1] = {};
@@ -92,16 +87,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  /*
-  for (int i = 0; i < MAX_CARS + 1; i++) {
-    for (int j = 0; j < MAX_CARS + 1; j++) {
-      for (int a = 0; a < 2 * MAX_ACTION + 1; a++) {
-        std::cout << expected_reward[i][j][a] << "  ";
-      }
-      std::cout << '\n';
-    }
-  }
-  */
 
   // p(s'|s,a)
   double transition_prob_a[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1] = {};
@@ -137,88 +122,89 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // se le probabilità di transizione sono sensate: devo utilizzare 
-  // expected_reward, transition_prob_a, trannsition_prob_b per risolvere il policy iteration
-
-  /*
-  for (int i = 0; i < MAX_CARS + 1; i++) {
-    for (int j = 0; j < MAX_CARS + 1; j++) {
-      std::cout << i << " " << j << ": ";
-      for (int a = 0; a < 2 * MAX_ACTION + 1; a++) {
-        std::cout << transition_prob_a[i][j][a] << "  ";
-      }
-      std::cout << '\n';
-    }
-  }
-  */
-
 
   double state_values[MAX_CARS + 1][MAX_CARS + 1] = {};
   int policy[MAX_CARS + 1][MAX_CARS + 1] = {};
   
-  // policy evaluation
-  double delta = 0;
-  double theta = 1;
-  do {
-    delta = 0;
-    for (int i = 0; i < MAX_CARS + 1; i++) {
-      for (int j = 0; j < MAX_CARS + 1; j++) {
-        double old_value = state_values[i][j];
-        double first_term = expected_reward[i][j][policy[i][j] + MAX_ACTION];
-        double second_term = 0;
-        for (int k = 0; k < MAX_CARS + 1; k++) {
-          for (int q = 0; q < MAX_CARS + 1; q++) {
-            second_term += transition_prob_a[k][i][policy[i][j] + MAX_ACTION] * 
-                           transition_prob_b[q][j][policy[i][j] + MAX_ACTION] *
-                           state_values[k][q];
-          }
-        }
-        second_term *= 0.9;
-        state_values[i][j] = first_term + second_term;
-        delta = std::max(delta, abs(old_value - state_values[i][j]));
-      }
-    }
-  }
-  while (delta > theta);
-
-  for (int i = 0; i < MAX_CARS + 1; i++) {
-    for (int j = 0; j < MAX_CARS + 1; j++) {
-      std::cout << state_values[i][j] << "  ";
-    }
-    std::cout << '\n';
-  }
-
-  // policy improvement
   bool policy_stable = true;
   do {
+    // policy evaluation
+    double delta = 0;
+    double theta = 0.1;
+    do {
+      delta = 0;
+      for (int i = 0; i < MAX_CARS + 1; i++) {
+        for (int j = 0; j < MAX_CARS + 1; j++) {
+          double old_value = state_values[i][j];
+          double first_term = expected_reward[i][j][policy[i][j] + MAX_ACTION];
+          double second_term = 0;
+          for (int k = 0; k < MAX_CARS + 1; k++) {
+            for (int q = 0; q < MAX_CARS + 1; q++) {
+              second_term += transition_prob_a[k][i][policy[i][j] + MAX_ACTION] * 
+                             transition_prob_b[q][j][policy[i][j] + MAX_ACTION] *
+                             state_values[k][q];
+            }
+          }
+          second_term *= 0.9;
+          state_values[i][j] = first_term + second_term;
+          delta = std::max(delta, abs(old_value - state_values[i][j]));
+        }
+      }
+    }
+    while (delta > theta);
+
+    // policy improvement
     policy_stable = true;
     for (int i = 0; i < MAX_CARS + 1; i++) {
       for (int j = 0; j < MAX_CARS + 1; j++) {
         int old_action = policy[i][j];
-        policy[i][j] = argmax(state_values, expected_reward, transition_prob_a, transition_prob_b);
-      }
-    }
-  }
 
+        int max_action = 0;
+        double max_value = 0;
+        for (int a = 0; a < 2 * MAX_ACTION + 1; a++) {
+          double first_term = expected_reward[i][j][a];
+          double second_term = 0;
+          for (int k = 0; k < MAX_CARS + 1; k++) {
+            for (int q = 0; q < MAX_CARS + 1; q++) {
+              second_term += transition_prob_a[k][i][a] * 
+                             transition_prob_b[q][j][a] *
+                             state_values[k][q];
+            }
+          }
+          second_term *= 0.9;
+          double value = first_term + second_term;
 
-  return 0;
-}
+          if (max_value < value) {
+            max_value = value;
+            max_action = a - MAX_ACTION;
+          }
+        }
 
-// TODO: do not rush: think carefully this stuff
-int argmax(double state_values[MAX_CARS + 1][MAX_CARS + 1]) {
-  for (int i = 0; i < MAX_CARS + 1; i++) {
-    for (int j = 0; j < MAX_CARS + 1; j++) {
-      double old_value = state_values[i][j];
-      double first_term = expected_reward[i][j][policy[i][j] + MAX_ACTION];
-      double second_term = 0;
-      for (int k = 0; k < MAX_CARS + 1; k++) {
-        for (int q = 0; q < MAX_CARS + 1; q++) {
-          second_term += transition_prob_a[k][i][policy[i][j] + MAX_ACTION] * 
-                         transition_prob_b[q][j][policy[i][j] + MAX_ACTION] *
-                         state_values[k][q];
+        policy[i][j] = max_action;
+        if (old_action != policy[i][j]) {
+          policy_stable = false;
         }
       }
-      second_term *= 0.9;
-      state_values[i][j] = first_term + second_term;
-  
+    }
+
+    std::cout << "START" << std::endl;
+    for (int i = 0; i < MAX_CARS + 1; i++) {
+      for (int j = 0; j < MAX_CARS + 1; j++) {
+        std::cout << policy[i][j] << " ";
+      }
+      std::cout << '\n';
+    }
+    std::cout << "END" << std::endl;
+
+  }
+  while (!policy_stable);
+
+  for (int i = 0; i < MAX_CARS + 1; i++) {
+    for (int j = 0; j < MAX_CARS + 1; j++) {
+      std::cout << state_values[i][j] << " ";
+    }
+    std::cout << '\n';
+  }
+
+  return 0;
 }
