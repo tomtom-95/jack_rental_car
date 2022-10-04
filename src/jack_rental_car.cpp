@@ -1,10 +1,10 @@
 #include <iostream>
 #include <cmath>
 
-#define MAX_CARS 20
-#define MAX_ACTION 5
-#define RENT_REWARD 10
-#define MOVE_COST 2
+const int MAX_CARS = 20; 
+const int MAX_ACTION = 5;
+const int RENT_REWARD = 10;
+const int MOVE_COST = 2;
 
 long long factorial(int k);
 double poisson(double lambda, int k);
@@ -69,8 +69,25 @@ int main(int argc, char *argv[]) {
   double mu_a = 3;
   double mu_b = 2;
 
-  // r(s,a)
+  /*
+  // r(s,a) 2
   double expected_reward[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1] = {};
+  for (auto &i: expected_reward) {
+    for (auto &j: i) {
+      for (auto a: i) {
+        // here comes the problem: I need to keep track of the indices to take some decision and using auto I lost this possibility
+        // I should need something like an enumerate python like but I should first find a way to obtain this funcitonality
+        int action = a - MAX_ACTION;
+        if (i - action < 0 || j + action < 0) {
+          
+        }
+      }
+    }
+  }
+  */
+
+  // r(s,a)
+  double expected_reward[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1];
   for (int i = 0; i < MAX_CARS + 1; i++) {
     for (int j = 0; j < MAX_CARS + 1; j++) {
       for (int a = 0; a < 2 * MAX_ACTION + 1; a++) {
@@ -80,8 +97,8 @@ int main(int argc, char *argv[]) {
         }
         else {
           expected_reward[i][j][a] = rent_reward(i - action, lambda_a) +
-                                      rent_reward(j + action, lambda_b) -
-                                      MOVE_COST * abs(action);
+                                     rent_reward(j + action, lambda_b) -
+                                     MOVE_COST * abs(action);
         }
       }
     }
@@ -89,8 +106,8 @@ int main(int argc, char *argv[]) {
 
 
   // p(s'|s,a)
-  double transition_prob_a[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1] = {};
-  double transition_prob_b[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1] = {};
+  double transition_prob_a[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1];
+  double transition_prob_b[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1];
 
   for (int i = 0; i < MAX_CARS + 1; i++) {
     for (int j = 0; j < MAX_CARS + 1; j++) {
