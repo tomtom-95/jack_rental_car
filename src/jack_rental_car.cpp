@@ -2,7 +2,9 @@
 #include <cmath>
 
 const int MAX_CARS = 20; 
-const int MAX_ACTION = 5;
+const int MIN_ACTION = -5;
+const int MAX_ACTION = 6;
+const int TOTAL_ACTION_NUM = abs(MIN_ACTION) + MAX_ACTION + 1;
 const int RENT_REWARD = 10;
 const int MOVE_COST = 2;
 
@@ -69,36 +71,28 @@ int main(int argc, char *argv[]) {
   double mu_a = 3;
   double mu_b = 2;
 
-  /*
-  // r(s,a) 2
-  double expected_reward[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1] = {};
-  for (auto &i: expected_reward) {
-    for (auto &j: i) {
-      for (auto a: i) {
-        // here comes the problem: I need to keep track of the indices to take some decision and using auto I lost this possibility
-        // I should need something like an enumerate python like but I should first find a way to obtain this funcitonality
-        int action = a - MAX_ACTION;
-        if (i - action < 0 || j + action < 0) {
-          
-        }
-      }
-    }
-  }
-  */
 
   // r(s,a)
-  double expected_reward[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1];
+  double expected_reward[MAX_CARS + 1][MAX_CARS + 1][TOTAL_ACTION_NUM + 1];
   for (int i = 0; i < MAX_CARS + 1; i++) {
     for (int j = 0; j < MAX_CARS + 1; j++) {
-      for (int a = 0; a < 2 * MAX_ACTION + 1; a++) {
+      for (int a = 0; a < TOTAL_ACTION_NUM + 1; a++) {
+        // TOT = 5 + 6 + 1 = 12; action = 12 - 6 = 6
         int action = a - MAX_ACTION;
         if (i - action < 0 || j + action < 0) {
           expected_reward[i][j][a] = 0;
         }
         else {
-          expected_reward[i][j][a] = rent_reward(i - action, lambda_a) +
-                                     rent_reward(j + action, lambda_b) -
-                                     MOVE_COST * abs(action);
+          if (action > 0) {
+            expected_reward[i][j][a] = rent_reward(i - action, lambda_a) +
+                                       rent_reward(j + action, lambda_b) -
+                                       MOVE_COST * (action - 1);
+          }
+          else {
+            expected_reward[i][j][a] = rent_reward(i - action, lambda_a) +
+                                       rent_reward(j + action, lambda_b) -
+                                       MOVE_COST * abs(action);
+          }
         }
       }
     }
@@ -106,12 +100,12 @@ int main(int argc, char *argv[]) {
 
 
   // p(s'|s,a)
-  double transition_prob_a[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1];
-  double transition_prob_b[MAX_CARS + 1][MAX_CARS + 1][2 * MAX_ACTION + 1];
+  double transition_prob_a[MAX_CARS + 1][MAX_CARS + 1][TOTAL_ACTION_NUM + 1];
+  double transition_prob_b[MAX_CARS + 1][MAX_CARS + 1][TOTAL_ACTION_NUM + 1];
 
   for (int i = 0; i < MAX_CARS + 1; i++) {
     for (int j = 0; j < MAX_CARS + 1; j++) {
-      for (int a = 0; a < 2 * MAX_ACTION + 1; a++) {
+      for (int a = 0; a < TOTAL_ACTION_NUM + 1; a++) {
         int action = a - MAX_ACTION;
         if (j - action < 0) {
           transition_prob_a[i][j][a] = 0;
@@ -178,7 +172,7 @@ int main(int argc, char *argv[]) {
 
         int max_action = 0;
         double max_value = 0;
-        for (int a = 0; a < 2 * MAX_ACTION + 1; a++) {
+        for (int a = 0; a < TOTAL_ACTION_NUM + 1; a++) {
           double first_term = expected_reward[i][j][a];
           double second_term = 0;
           for (int k = 0; k < MAX_CARS + 1; k++) {
